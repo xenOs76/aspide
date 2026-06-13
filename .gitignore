@@ -1,0 +1,9 @@
+*.pyc
+.ruff_cache
+src/__pycache__
+src/.ruff_cache
+.venv
+docs
+graphify-out
+examples
+src/settings.toml

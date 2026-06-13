@@ -1,0 +1,24 @@
+# --- WiFi Settings ---
+CIRCUITPY_WIFI_SSID = "Your_SSID"
+CIRCUITPY_WIFI_PASSWORD = "Your_Password"
+
+# --- NeoPixel Customization ---
+NEOPIXEL_TIMEOUT = 30
+
+# --- Home Assistant Settings ---
+HA_URL = "http://192.168.1.78:8123" # sample IP, default Home Assistant port. HTTPS connection not tested
+
+# To create the token:
+# https://developers.home-assistant.io/docs/auth_api/#long-lived-access-token
+HA_TOKEN = "your_long_lived_access_token_here"
+
+# Colors for HA scenes (maps 1-to-1 with HA_SCENES below)
+# Available intensities: bright_ (100%), soft_ (40%), dim_ (10%)
+# Available colors: white, green, red, blue, purple, cyan, yellow, orange, pink, gold, black
+HA_SCENE_COLORS = "dim_blue,black,bright_red,soft_white"
+
+# List of HA scenes to iterate through in 'home_assistant' mode
+HA_SCENES = "scene.nightlights,scene.lightsoff,scene.redalert,scene.softlights1"
+
+# WIZ light entity to control in 'wiz' mode
+HA_WIZ_LIGHT_ENTITY_ID = "light.wiz_01"
