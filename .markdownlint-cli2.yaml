@@ -1,0 +1,8 @@
+config:
+  MD013: false # Disable line length check
+  MD041: false # First line in a file should be a top-level heading (yaml frontmatter issues)
+  MD033: false # Allow inline HTML
+  MD025: false # Allow frontmatter title + H1 header
+
+ignores:
+  - "wiki/raw/**/*"
