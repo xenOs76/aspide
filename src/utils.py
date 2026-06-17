@@ -4,7 +4,12 @@ import wifi
 import socketpool
 import ssl
 import microcontroller
+from colors import brightness_from_label, get_color_from_name
 from ha_client import HomeAssistantClient
+
+NVM_MAGIC_LEGACY = 0x42
+NVM_MAGIC = 0x43
+DEFAULT_BRIGHTNESS_PRESETS = ["dim", "soft", "bright"]
 
 
 class ButtonPush:
@@ -132,43 +137,45 @@ class RotaryDial:
     """Orchestrator for the Rotary Knob device.
 
     Manages WiFi connectivity, Home Assistant client initialization,
-    mode switching (HA Scenes vs Wiz Effects), and state tracking
-    for selected scenes and lights. State is persisted in NVM.
+    mode switching (HA Scenes, HA Light effects, HA Brightness), and state
+    tracking for selected scenes and lights. State is persisted in NVM.
     """
 
     def __init__(self):
         self.__debug = True
         self.online = False
-        self.__modes = ["home_assistant", "wiz"]
+        self.__modes = ["home_assistant", "ha_light", "ha_brightness"]
         self.__mode_id = 0
         self.__wifi_ssid = os.getenv("CIRCUITPY_WIFI_SSID")
         self.__wifi_password = os.getenv("CIRCUITPY_WIFI_PASSWORD")
 
-        self.__wiz_light_entity_id = os.getenv("HA_WIZ_LIGHT_ENTITY_ID")
-        if self.__wiz_light_entity_id:
-            self.__wiz_light_entity_id = self.__wiz_light_entity_id.strip()
+        self.__ha_light_entity_id = os.getenv("HA_LIGHT_ENTITY_ID")
+        if not self.__ha_light_entity_id:
+            legacy_id = os.getenv("HA_WIZ_LIGHT_ENTITY_ID")
+            if legacy_id:
+                print(
+                    "WARNING: HA_WIZ_LIGHT_ENTITY_ID is deprecated; use HA_LIGHT_ENTITY_ID"
+                )
+                self.__ha_light_entity_id = legacy_id
+        if self.__ha_light_entity_id:
+            self.__ha_light_entity_id = self.__ha_light_entity_id.strip()
 
-        # Wiz Effects available through HA with approximate colors
-        self.__wiz_light_scene_colors = {
-            "Ocean": (0, 0, 255),
-            "Romance": (255, 0, 127),
-            "Sunset": (255, 69, 0),
-            "Party": (128, 0, 128),
-            "Candlelight": (255, 147, 41),
-            "Golden white": (255, 215, 0),
-            "Pulse": (255, 255, 255),
-            "Steampunk": (205, 127, 50),
-            "Diwali": (255, 255, 0),
-            "Fall": (139, 69, 19),
-            "Cyberpunk": (0, 255, 255),
-            "Christmas": (255, 0, 0),
-            "Halloween": (255, 165, 0),
-            "TV": (200, 200, 255),
-            "Yoga": (0, 255, 0),
-        }
-        self.__wiz_light_scenes_avail = list(self.__wiz_light_scene_colors.keys())
-        self.__wiz_light_scene_name_curr = self.__wiz_light_scenes_avail[0]
-        self.__wiz_light_scene_idx = 0
+        self.__ha_light_effects_avail = []
+        self.__ha_light_effect_name_curr = None
+        self.__ha_light_effect_idx = 0
+        self.__ha_light_effect_colors = self.__parse_env_list("HA_LIGHT_EFFECT_COLORS")
+
+        brightness_str = os.getenv("HA_LIGHT_BRIGHTNESS", "dim,soft,bright")
+        self.__ha_brightness_presets = [
+            p.strip() for p in brightness_str.split(",") if p.strip()
+        ]
+        if not self.__ha_brightness_presets:
+            self.__ha_brightness_presets = list(DEFAULT_BRIGHTNESS_PRESETS)
+        self.__ha_brightness_colors = self.__parse_env_list(
+            "HA_LIGHT_BRIGHTNESS_COLORS"
+        )
+        self.__ha_brightness_idx = 0
+        self.__ha_brightness_curr = self.__ha_brightness_presets[0]
 
         self.__pool = socketpool.SocketPool(wifi.radio)
         self.__ha_client = None
@@ -179,60 +186,121 @@ class RotaryDial:
         # Load persisted state from NVM
         self.__load_state()
 
+    def __parse_env_list(self, env_key):
+        """Parses a comma-separated settings value into a stripped list."""
+        value = os.getenv(env_key, "")
+        if not value:
+            return []
+        return [item.strip() for item in value.split(",") if item.strip()]
+
+    def __load_ha_light_effects(self):
+        """Loads effect list from settings or HA entity state."""
+        configured = self.__parse_env_list("HA_LIGHT_EFFECTS")
+        if configured:
+            self.__ha_light_effects_avail = configured
+            print(f"Loaded {len(configured)} effects from HA_LIGHT_EFFECTS")
+            return
+
+        if self.__ha_client and self.__ha_light_entity_id:
+            fetched = self.__ha_client.fetch_light_effects(self.__ha_light_entity_id)
+            if fetched:
+                self.__ha_light_effects_avail = fetched
+                return
+
+        print("WARNING: No light effects available for ha_light mode")
+
+    def __normalize_ha_light_effect_selection(self):
+        """Ensures effect index and name are valid after loading effects."""
+        if not self.__ha_light_effects_avail:
+            self.__ha_light_effect_idx = 0
+            self.__ha_light_effect_name_curr = None
+            return
+
+        idx = self.__ha_light_effect_idx % len(self.__ha_light_effects_avail)
+        self.__ha_light_effect_idx = idx
+        self.__ha_light_effect_name_curr = self.__ha_light_effects_avail[idx]
+
+    def __normalize_ha_brightness_selection(self):
+        """Ensures brightness preset index and label are valid."""
+        if not self.__ha_brightness_presets:
+            self.__ha_brightness_idx = 0
+            self.__ha_brightness_curr = None
+            return
+
+        idx = self.__ha_brightness_idx % len(self.__ha_brightness_presets)
+        self.__ha_brightness_idx = idx
+        self.__ha_brightness_curr = self.__ha_brightness_presets[idx]
+
     def save_state(self):
         """Persists the current mode and scene indices to NVM.
 
         NVM Map:
-        - [0]: Magic Byte (0x42)
+        - [0]: Magic Byte (0x43)
         - [1]: Mode ID
         - [2]: HA Scene Index
-        - [3]: Wiz Scene Index
+        - [3]: HA Light Effect Index
+        - [4]: HA Brightness Preset Index
         """
         if microcontroller.nvm is not None:
             try:
-                # Use slice assignment for more 'atomic' write operation
-                microcontroller.nvm[0:4] = bytes(
+                microcontroller.nvm[0:5] = bytes(
                     [
-                        0x42,
+                        NVM_MAGIC,
                         self.__mode_id,
                         self.__ha_scene_idx,
-                        self.__wiz_light_scene_idx,
+                        self.__ha_light_effect_idx,
+                        self.__ha_brightness_idx,
                     ]
                 )
                 if self.__debug:
                     print(
-                        f"DEBUG: State saved to NVM (Mode: {self.__mode_id}, HA: {self.__ha_scene_idx}, Wiz: {self.__wiz_light_scene_idx})"
+                        "DEBUG: State saved to NVM "
+                        f"(Mode: {self.__mode_id}, HA: {self.__ha_scene_idx}, "
+                        f"Light: {self.__ha_light_effect_idx}, "
+                        f"Brightness: {self.__ha_brightness_idx})"
                     )
             except Exception as e:
                 print(f"Error saving state to NVM: {e}")
 
     def __load_state(self):
         """Loads state from NVM if a valid magic byte is found."""
-        if microcontroller.nvm is not None and microcontroller.nvm[0] == 0x42:
-            try:
-                self.__mode_id = microcontroller.nvm[1] % len(self.__modes)
-                self.__ha_scene_idx = microcontroller.nvm[2]
-                self.__wiz_light_scene_idx = microcontroller.nvm[3] % len(
-                    self.__wiz_light_scenes_avail
+        if microcontroller.nvm is None:
+            return
+
+        magic = microcontroller.nvm[0]
+        if magic not in (NVM_MAGIC_LEGACY, NVM_MAGIC):
+            return
+
+        try:
+            self.__mode_id = microcontroller.nvm[1] % len(self.__modes)
+            self.__ha_scene_idx = microcontroller.nvm[2]
+            self.__ha_light_effect_idx = microcontroller.nvm[3]
+            if magic == NVM_MAGIC:
+                self.__ha_brightness_idx = microcontroller.nvm[4]
+            else:
+                # Legacy layout: wiz index in byte 3, no brightness index
+                self.__ha_brightness_idx = 0
+                if self.__mode_id == 1:
+                    # Old wiz mode maps to ha_light
+                    pass
+
+            self.__normalize_ha_brightness_selection()
+
+            if self.__debug:
+                print(
+                    "DEBUG: State loaded from NVM "
+                    f"(Mode: {self.__mode_id}, HA Index: {self.__ha_scene_idx}, "
+                    f"Light Index: {self.__ha_light_effect_idx}, "
+                    f"Brightness Index: {self.__ha_brightness_idx})"
                 )
-
-                # Restore the actual names from the indices
-                self.__wiz_light_scene_name_curr = self.__wiz_light_scenes_avail[
-                    self.__wiz_light_scene_idx
-                ]
-
-                if self.__debug:
-                    print(
-                        f"DEBUG: State loaded from NVM (Mode: {self.__mode_id}, HA Index: {self.__ha_scene_idx}, Wiz Index: {self.__wiz_light_scene_idx})"
-                    )
-            except Exception as e:
-                print(f"Error loading state from NVM: {e}")
+        except Exception as e:
+            print(f"Error loading state from NVM: {e}")
 
     def mode_current(self):
         """Returns the identifier of the active operational mode.
 
         Returns:
-            str: Either 'home_assistant' or 'wiz'.
+            str: 'home_assistant', 'ha_light', or 'ha_brightness'.
         """
         return self.__modes[self.__mode_id]
 
@@ -299,74 +367,151 @@ class RotaryDial:
             if self.__ha_scenes_avail:
                 idx = self.__ha_scene_idx % len(self.__ha_scenes_avail)
                 self.__ha_scene_curr = self.__ha_scenes_avail[idx]
-                self.__ha_scene_idx = idx  # Normalize
+                self.__ha_scene_idx = idx
+
+            self.__load_ha_light_effects()
+            self.__normalize_ha_light_effect_selection()
+            self.__normalize_ha_brightness_selection()
             return True
         except Exception as e:
             print(f"Error initializing HA: {e}")
             return False
 
-    def wiz_light_state(self, state=False):
-        """Directly toggles the power state of the targeted Wiz light entity.
+    def ha_light_power(self, state=False):
+        """Directly toggles the power state of the targeted HA light entity.
 
         Args:
             state (bool): True to turn on, False to turn off.
         """
-        if not self.__wiz_light_entity_id or not self.__ha_client:
+        if not self.__ha_light_entity_id or not self.__ha_client:
             return
 
         if state:
-            print(f"Turning on Wiz light via HA: {self.__wiz_light_entity_id}")
-            self.__ha_client.light_turn_on(self.__wiz_light_entity_id)
+            print(f"Turning on light via HA: {self.__ha_light_entity_id}")
+            self.__ha_client.light_turn_on(self.__ha_light_entity_id)
         else:
-            print(f"Turning off Wiz light via HA: {self.__wiz_light_entity_id}")
-            self.__ha_client.light_turn_off(self.__wiz_light_entity_id)
+            print(f"Turning off light via HA: {self.__ha_light_entity_id}")
+            self.__ha_client.light_turn_off(self.__ha_light_entity_id)
 
-    def wiz_light_scene_name(self, scene_name=None):
-        """Sends a command to HA to set the Wiz light to a specific effect.
+    def ha_light_apply_effect(self, effect_name=None):
+        """Sends a command to HA to set the light to a specific effect.
 
         Args:
-            scene_name (str, optional): The effect name. If None, uses the current browsing selection.
+            effect_name (str, optional): The effect name. If None, uses current selection.
         """
-        if not self.__wiz_light_entity_id or not self.__ha_client:
+        if not self.__ha_light_entity_id or not self.__ha_client:
+            return
+        if not self.__ha_light_effects_avail:
+            print("WARNING: No effects configured for ha_light mode")
             return
 
-        name = scene_name or self.__wiz_light_scene_name_curr
-        print(f"Setting Wiz light effect via HA: {name}")
-        self.__ha_client.light_turn_on(self.__wiz_light_entity_id, effect=name)
-        self.__wiz_light_scene_name_curr = name
-        self.__wiz_light_scene_idx = self.__wiz_light_scenes_avail.index(name)
+        name = effect_name or self.__ha_light_effect_name_curr
+        print(f"Setting light effect via HA: {name}")
+        self.__ha_client.light_turn_on(self.__ha_light_entity_id, effect=name)
+        self.__ha_light_effect_name_curr = name
+        self.__ha_light_effect_idx = self.__ha_light_effects_avail.index(name)
         self.save_state()
 
-    def wiz_light_scene_color(self):
-        """Returns the RGB color mapping for the currently selected Wiz effect.
+    def ha_light_effect_color(self):
+        """Returns the RGB color for the currently selected effect preview.
+
+        Returns:
+            tuple[int, int, int]: RGB color tuple, or white if no color configured.
+        """
+        if self.__ha_light_effect_colors and self.__ha_light_effect_idx < len(
+            self.__ha_light_effect_colors
+        ):
+            return get_color_from_name(
+                self.__ha_light_effect_colors[self.__ha_light_effect_idx]
+            )
+        return (255, 255, 255)
+
+    def ha_light_select_next(self):
+        """Increments the internal selection of the light effect (browsing mode)."""
+        if not self.__ha_light_effects_avail:
+            return
+        self.__ha_light_effect_idx = (self.__ha_light_effect_idx + 1) % len(
+            self.__ha_light_effects_avail
+        )
+        self.__ha_light_effect_name_curr = self.__ha_light_effects_avail[
+            self.__ha_light_effect_idx
+        ]
+        print(f"DEBUG: HA light select next -> {self.__ha_light_effect_name_curr}")
+        self.save_state()
+
+    def ha_light_select_prev(self):
+        """Decrements the internal selection of the light effect (browsing mode)."""
+        if not self.__ha_light_effects_avail:
+            return
+        self.__ha_light_effect_idx = (self.__ha_light_effect_idx - 1) % len(
+            self.__ha_light_effects_avail
+        )
+        self.__ha_light_effect_name_curr = self.__ha_light_effects_avail[
+            self.__ha_light_effect_idx
+        ]
+        print(f"DEBUG: HA light select prev -> {self.__ha_light_effect_name_curr}")
+        self.save_state()
+
+    def ha_brightness_apply(self, preset=None):
+        """Sets the light brightness via HA for the current or given preset.
+
+        Args:
+            preset (str, optional): Preset label. If None, uses current selection.
+        """
+        if not self.__ha_light_entity_id or not self.__ha_client:
+            return
+        if not self.__ha_brightness_presets:
+            print("WARNING: No brightness presets configured")
+            return
+
+        label = preset or self.__ha_brightness_curr
+        brightness = brightness_from_label(label)
+        print(f"Setting light brightness via HA: {label} ({brightness})")
+        self.__ha_client.light_turn_on(self.__ha_light_entity_id, brightness=brightness)
+        self.__ha_brightness_curr = label
+        self.__ha_brightness_idx = self.__ha_brightness_presets.index(label)
+        self.save_state()
+
+    def ha_brightness_preview_color(self):
+        """Returns the RGB color for the current brightness preset preview.
 
         Returns:
             tuple[int, int, int]: RGB color tuple.
         """
-        return self.__wiz_light_scene_colors.get(
-            self.__wiz_light_scene_name_curr, (255, 255, 255)
-        )
+        if self.__ha_brightness_colors and self.__ha_brightness_idx < len(
+            self.__ha_brightness_colors
+        ):
+            return get_color_from_name(
+                self.__ha_brightness_colors[self.__ha_brightness_idx]
+            )
 
-    def wiz_light_select_next(self):
-        """Increments the internal selection of the Wiz effect (Browsing mode)."""
-        self.__wiz_light_scene_idx = (self.__wiz_light_scene_idx + 1) % len(
-            self.__wiz_light_scenes_avail
+        label = self.__ha_brightness_curr or "bright"
+        return get_color_from_name(f"{label}_white")
+
+    def ha_brightness_select_next(self):
+        """Increments the internal brightness preset selection."""
+        if not self.__ha_brightness_presets:
+            return
+        self.__ha_brightness_idx = (self.__ha_brightness_idx + 1) % len(
+            self.__ha_brightness_presets
         )
-        self.__wiz_light_scene_name_curr = self.__wiz_light_scenes_avail[
-            self.__wiz_light_scene_idx
+        self.__ha_brightness_curr = self.__ha_brightness_presets[
+            self.__ha_brightness_idx
         ]
-        print(f"DEBUG: Wiz internal select next -> {self.__wiz_light_scene_name_curr}")
+        print(f"DEBUG: HA brightness select next -> {self.__ha_brightness_curr}")
         self.save_state()
 
-    def wiz_light_select_prev(self):
-        """Decrements the internal selection of the Wiz effect (Browsing mode)."""
-        self.__wiz_light_scene_idx = (self.__wiz_light_scene_idx - 1) % len(
-            self.__wiz_light_scenes_avail
+    def ha_brightness_select_prev(self):
+        """Decrements the internal brightness preset selection."""
+        if not self.__ha_brightness_presets:
+            return
+        self.__ha_brightness_idx = (self.__ha_brightness_idx - 1) % len(
+            self.__ha_brightness_presets
         )
-        self.__wiz_light_scene_name_curr = self.__wiz_light_scenes_avail[
-            self.__wiz_light_scene_idx
+        self.__ha_brightness_curr = self.__ha_brightness_presets[
+            self.__ha_brightness_idx
         ]
-        print(f"DEBUG: Wiz internal select prev -> {self.__wiz_light_scene_name_curr}")
+        print(f"DEBUG: HA brightness select prev -> {self.__ha_brightness_curr}")
         self.save_state()
 
     def ha_scene_next(self):
@@ -402,8 +547,10 @@ class RotaryDial:
             int: The list index of the active selection.
         """
         mode = self.mode_current()
-        if mode == "wiz":
-            return self.__wiz_light_scene_idx
+        if mode == "ha_light":
+            return self.__ha_light_effect_idx
+        elif mode == "ha_brightness":
+            return self.__ha_brightness_idx
         elif mode == "home_assistant":
             return self.__ha_scene_idx
         return 0

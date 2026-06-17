@@ -56,8 +56,24 @@ ha_scene_colors = (
     [c.strip() for c in ha_scene_colors_str.split(",")] if ha_scene_colors_str else []
 )
 
+ha_light_effect_colors_str = os.getenv("HA_LIGHT_EFFECT_COLORS", "")
+ha_light_effect_colors = (
+    [c.strip() for c in ha_light_effect_colors_str.split(",")]
+    if ha_light_effect_colors_str
+    else []
+)
+
+ha_brightness_colors_str = os.getenv("HA_LIGHT_BRIGHTNESS_COLORS", "")
+ha_brightness_colors = (
+    [c.strip() for c in ha_brightness_colors_str.split(",")]
+    if ha_brightness_colors_str
+    else []
+)
+
 # Initialize Managers
-display = DisplayManager(strip, rotary_dial, ha_scene_colors)
+display = DisplayManager(
+    strip, rotary_dial, ha_scene_colors, ha_light_effect_colors, ha_brightness_colors
+)
 neopixel_timeout = int(os.getenv("NEOPIXEL_TIMEOUT", 30))
 timer = InactivityTimer(display, neopixel_timeout)
 
@@ -75,7 +91,7 @@ success = rotary_dial.wifi_connect()
 print(f"Connection success: {success}")
 if success:
     rotary_dial.initialize_ha()
-    rotary_dial.wiz_light_state(True)
+    rotary_dial.ha_light_power(True)
     rotary_dial.online = True
 display.show_connection_status(success)
 
@@ -102,16 +118,22 @@ while True:
     if rotary_dial.online and position_direction:
         curr_mode = rotary_dial.mode_current()
         if position_direction == "increase":
-            if curr_mode == "wiz":
-                print("Browsing Wiz scenes (preview only)...")
-                rotary_dial.wiz_light_select_next()
+            if curr_mode == "ha_light":
+                print("Browsing light effects (preview only)...")
+                rotary_dial.ha_light_select_next()
+            elif curr_mode == "ha_brightness":
+                print("Browsing brightness presets (preview only)...")
+                rotary_dial.ha_brightness_select_next()
             elif curr_mode == "home_assistant":
                 print("Switching to next HA scene...")
                 rotary_dial.ha_scene_next()
         else:
-            if curr_mode == "wiz":
-                print("Browsing Wiz scenes (preview only)...")
-                rotary_dial.wiz_light_select_prev()
+            if curr_mode == "ha_light":
+                print("Browsing light effects (preview only)...")
+                rotary_dial.ha_light_select_prev()
+            elif curr_mode == "ha_brightness":
+                print("Browsing brightness presets (preview only)...")
+                rotary_dial.ha_brightness_select_prev()
             elif curr_mode == "home_assistant":
                 print("Switching to previous HA scene...")
                 rotary_dial.ha_scene_prev()
@@ -136,24 +158,16 @@ while True:
             if curr_mode == "home_assistant":
                 print("Activating HA Scene...")
                 rotary_dial.ha_scene_activate()
-            elif curr_mode == "wiz":
-                print("Activating Wiz Scene via HA...")
-                rotary_dial.wiz_light_scene_name()
+            elif curr_mode == "ha_light":
+                print("Activating light effect via HA...")
+                rotary_dial.ha_light_apply_effect()
+            elif curr_mode == "ha_brightness":
+                print("Applying brightness preset via HA...")
+                rotary_dial.ha_brightness_apply()
         push.reset_push()
 
     if push.push_double():
-        print("Double push detected")
-        if rotary_dial.online:
-            rotary_dial.mode_next()
-            curr_mode = rotary_dial.mode_current()
-            print(f"\tSwitched to mode: {curr_mode}")
-            if curr_mode == "wiz":
-                rotary_dial.wiz_light_scene_name()
-            display.update_strip_color()
-        push.reset_push()
-
-    if push.push_long():
-        print("Long push detected - Rebooting device...")
+        print("Double push detected - Rebooting device...")
         # Visual feedback for reboot
         strip.fill(rgb_colors["red"])
         time.sleep(0.5)
@@ -162,6 +176,19 @@ while True:
         # Final save before reset to ensure NVM is up to date
         rotary_dial.save_state()
         microcontroller.reset()
+
+    if push.push_long():
+        print("Long push detected")
+        if rotary_dial.online:
+            rotary_dial.mode_next()
+            curr_mode = rotary_dial.mode_current()
+            print(f"\tSwitched to mode: {curr_mode}")
+            if curr_mode == "ha_light":
+                rotary_dial.ha_light_apply_effect()
+            elif curr_mode == "ha_brightness":
+                rotary_dial.ha_brightness_apply()
+            display.update_strip_color()
+        push.reset_push()
 
     # 3. Handle NeoPixel Timeout (Auto-Dim)
     timer.check()

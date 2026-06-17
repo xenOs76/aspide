@@ -119,3 +119,32 @@ class HomeAssistantClient:
         """
         data = {"entity_id": entity_id}
         return self.call_service("light", "turn_off", data)
+
+    def fetch_light_effects(self, entity_id):
+        """Retrieves the effect_list from a light entity state.
+
+        Args:
+            entity_id (str): The entity ID of the light.
+
+        Returns:
+            list[str]: Effect names from HA, or empty list on error.
+        """
+        if not self._url or not self._token or not entity_id:
+            return []
+
+        url = f"{self._url}/api/states/{entity_id}"
+        try:
+            response = self._requests.get(url, headers=self._headers)
+            if response.status_code != 200:
+                print(
+                    f"Failed to fetch light state. Status code: {response.status_code}"
+                )
+                return []
+            state = response.json()
+            effects = state.get("attributes", {}).get("effect_list", [])
+            if effects:
+                print(f"Fetched {len(effects)} effects from {entity_id}")
+            return list(effects)
+        except Exception as e:
+            print(f"Error fetching light effects: {e}")
+            return []

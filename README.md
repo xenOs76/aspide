@@ -8,7 +8,7 @@
 [CircuitPython](https://circuitpython.org/) for the Adafruit QT Py ESP32-S2
 board.\
 This device provides a physical interface to control
-[Home Assistant](https://www.home-assistant.io/) scenes and Wiz smart lights
+[Home Assistant](https://www.home-assistant.io/) scenes and lights
 with rich visual feedback via a NeoPixel strip.
 
 **Aspide** is inspired by two of the many, great, tutorials created by
@@ -19,16 +19,15 @@ with rich visual feedback via a NeoPixel strip.
 
 ## Features
 
-- **Dual Control Modes**: Seamlessly switch between controlling _Home Assistant
-  scenes_ and _Wiz light effects_.
+- **Triple Control Modes**: Switch between controlling _Home Assistant scenes_,
+  _light effects_, and _brightness presets_.
 - **NeoPixel Visual Feedback**:
-  - Mode indicators (Blue for HA, Yellow for Wiz).
-  - Scene/Effect previews with colors matching the selected setting.
+  - Mode indicators (Blue for scenes, Amber for effects, White for brightness).
+  - Scene/Effect/Brightness previews with colors matching the selected setting.
 - **Home Assistant Integration**: Uses the HA REST API for reliable, low-latency
   control.
-- **Wiz "Thin Client" Architecture**: Controls Wiz lights through Home
-  Assistant, eliminating the need for direct UDP communication or hardcoded IP
-  addresses.
+- **Manufacturer-Agnostic Light Control**: Controls any HA `light.*` entity
+  through Home Assistant — no direct UDP or vendor-specific libraries required.
 - **Inactivity Timer**: Automatically dims NeoPixels after a period of
   inactivity to save power and reduce light pollution.
 
@@ -101,8 +100,19 @@ HA_TOKEN = "your_long_lived_access_token_here"
 # List of HA scenes to iterate through in 'home_assistant' mode
 HA_SCENES = "scene.nightlights,scene.lightsoff,scene.redalert,scene.softlights1"
 
-# WIZ light entity to control in 'wiz' mode
-HA_WIZ_LIGHT_ENTITY_ID = "light.wiz_01"
+# Light entity for ha_light and ha_brightness modes
+HA_LIGHT_ENTITY_ID = "light.wiz_01"
+
+# Effects to browse in ha_light mode (comma-separated, must match HA effect_list)
+# Leave empty to auto-fetch effect_list from HA at boot
+HA_LIGHT_EFFECTS = "Ocean,Sunset,Party,Candlelight"
+
+# NeoPixel preview colors for effects (1:1 with HA_LIGHT_EFFECTS; optional)
+HA_LIGHT_EFFECT_COLORS = "dim_blue,bright_orange,bright_purple,soft_gold"
+
+# Brightness presets for ha_brightness mode (dim=26, soft=102, bright=255)
+HA_LIGHT_BRIGHTNESS = "dim,soft,bright"
+HA_LIGHT_BRIGHTNESS_COLORS = "dim_white,soft_white,bright_white"
 ```
 
 ### NeoPixel Customization
@@ -123,20 +133,27 @@ HA_SCENE_COLORS = "dim_blue,black,bright_red,soft_white"
 
 ### Controls
 
-- **Rotate**: Browse through the available scenes or effects. The NeoPixel ring
-  will change color to provide a "preview" of the selected setting.
-- **Single Push**: Activate the currently selected scene or Wiz effect.
-- **Double Push**: Switch between **Home Assistant Mode** (Blue indicator) and
-  **Wiz Mode** (Yellow indicator).
-- **Long Push**: Perform a hard reset of the device (reboots and reconnects to
+- **Rotate**: Browse through the available scenes, effects, or brightness
+  presets. The NeoPixel ring will change color to provide a preview.
+- **Single Push**: Activate the currently selected scene, effect, or brightness
+  preset.
+- **Double Push**: Perform a hard reset of the device (reboots and reconnects to
   WiFi).
+- **Long Push**: Cycle through **Home Assistant Mode** (Blue), **Light Effects
+  Mode** (Amber), and **Brightness Mode** (White).
 
 ### Modes
 
 1. **Home Assistant Mode**: Cycles through the scenes defined in `HA_SCENES`.
    The NeoPixels will match the colors defined in `HA_SCENE_COLORS`.
-2. **Wiz Mode**: Cycles through 15 built-in Wiz dynamic effects (Ocean, Sunset,
-   Party, etc.). The NeoPixels will show a color representative of the effect.
+2. **Light Effects Mode** (`ha_light`): Cycles through effects defined in
+   `HA_LIGHT_EFFECTS`, or auto-fetches `effect_list` from HA when empty. Effect
+   names must match what your light integration exposes. NeoPixel preview colors
+   come from `HA_LIGHT_EFFECT_COLORS`.
+3. **Brightness Mode** (`ha_brightness`): Cycles through presets in
+   `HA_LIGHT_BRIGHTNESS` (default: dim, soft, bright). Single push sends
+   `light.turn_on` with the corresponding brightness level. NeoPixel preview
+   colors come from `HA_LIGHT_BRIGHTNESS_COLORS`.
 
 ## Installation
 
