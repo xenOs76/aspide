@@ -112,19 +112,6 @@ wheels = [
 ]
 
 [[package]]
-name = "adafruit-circuitpython-wiz"
-version = "1.1.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "adafruit-blinka" },
-    { name = "adafruit-circuitpython-connectionmanager" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/93/d2/bfebe028e730a360766161ad173eccda4d43d27a90d571d32be889ab7758/adafruit_circuitpython_wiz-1.1.4.tar.gz", hash = "sha256:3879f7fa8e4b31655d3d218f88348538dd58340452a3b12b9484e9198e9b68bb", size = 27275, upload-time = "2026-04-23T21:26:27.455Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/0c/f47b15225e2047eeb78fea74a4069d719a82a9e41ebdc11f9eda923c4275/adafruit_circuitpython_wiz-1.1.4-py3-none-any.whl", hash = "sha256:6818506187b56383a619bc6fbeb77d662805152dabd169e793b98bf450e622cd", size = 7681, upload-time = "2026-04-23T21:26:26.274Z" },
-]
-
-[[package]]
 name = "adafruit-platformdetect"
 version = "3.88.0"
 source = { registry = "https://pypi.org/simple" }
@@ -144,14 +131,13 @@ wheels = [
 
 [[package]]
 name = "aspide"
-version = "0.1.0"
+version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
     { name = "adafruit-circuitpython-busdevice" },
     { name = "adafruit-circuitpython-neopixel" },
     { name = "adafruit-circuitpython-requests" },
     { name = "adafruit-circuitpython-seesaw" },
-    { name = "adafruit-circuitpython-wiz" },
 ]
 
 [package.dev-dependencies]
@@ -167,7 +153,6 @@ requires-dist = [
     { name = "adafruit-circuitpython-neopixel", specifier = ">=6.4.2" },
     { name = "adafruit-circuitpython-requests", specifier = ">=4.1.17" },
     { name = "adafruit-circuitpython-seesaw", specifier = ">=1.18.2" },
-    { name = "adafruit-circuitpython-wiz", specifier = ">=1.1.4" },
 ]
 
 [package.metadata.requires-dev]

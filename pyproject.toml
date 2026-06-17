@@ -1,13 +1,12 @@
 [project]
 name = "aspide"
-version = "0.1.0"
+version = "0.2.0"
 description = "Home Assistant & Python powered Dialer"
 requires-python = ">=3.13"
 dependencies = [
     "adafruit-circuitpython-busdevice>=5.2.17",
     "adafruit-circuitpython-neopixel>=6.4.2",
     "adafruit-circuitpython-seesaw>=1.18.2",
-    "adafruit-circuitpython-wiz>=1.1.4",
     "adafruit-circuitpython-requests>=4.1.17",
 ]
 
@@ -17,10 +16,3 @@ dev = [
     "pre-commit>=3.7.1",
     "circuitpython-stubs",
 ]
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "$version"
-version_scheme = "semver"
-version_provider = "uv"
-major_version_zero = true

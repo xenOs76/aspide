@@ -20,5 +20,20 @@ HA_SCENE_COLORS = "dim_blue,black,bright_red,soft_white"
 # List of HA scenes to iterate through in 'home_assistant' mode
 HA_SCENES = "scene.nightlights,scene.lightsoff,scene.redalert,scene.softlights1"
 
-# WIZ light entity to control in 'wiz' mode
-HA_WIZ_LIGHT_ENTITY_ID = "light.wiz_01"
+# Light entity for ha_light and ha_brightness modes
+HA_LIGHT_ENTITY_ID = "light.wiz_01"
+
+# Effects to browse in ha_light mode (comma-separated, must match HA effect_list)
+# Leave empty to auto-fetch effect_list from HA at boot
+HA_LIGHT_EFFECTS = "Ocean,Sunset,Party,Candlelight"
+
+# NeoPixel preview colors for effects (1:1 with HA_LIGHT_EFFECTS; optional)
+# Use colors.py names: dim_blue, bright_white, etc.
+HA_LIGHT_EFFECT_COLORS = "dim_blue,bright_orange,bright_purple,soft_gold"
+
+# Brightness presets for ha_brightness mode (comma-separated labels)
+# Maps to HA brightness 0-255: dim=26, soft=102, bright=255
+HA_LIGHT_BRIGHTNESS = "dim,soft,bright"
+
+# NeoPixel preview for brightness presets (1:1 with HA_LIGHT_BRIGHTNESS)
+HA_LIGHT_BRIGHTNESS_COLORS = "dim_white,soft_white,bright_white"

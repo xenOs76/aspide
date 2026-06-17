@@ -10,12 +10,23 @@ class DisplayManager:
         strip (neopixel.NeoPixel): The NeoPixel strip object.
         rotary_dial (RotaryDial): The rotary dial controller instance.
         ha_scene_colors (list[str]): List of configured scene color names.
+        ha_light_effect_colors (list[str]): List of configured effect preview colors.
+        ha_brightness_colors (list[str]): List of configured brightness preview colors.
     """
 
-    def __init__(self, strip, rotary_dial, ha_scene_colors):
+    def __init__(
+        self,
+        strip,
+        rotary_dial,
+        ha_scene_colors,
+        ha_light_effect_colors,
+        ha_brightness_colors,
+    ):
         self.strip = strip
         self.rotary_dial = rotary_dial
         self.ha_scene_colors = ha_scene_colors
+        self.ha_light_effect_colors = ha_light_effect_colors
+        self.ha_brightness_colors = ha_brightness_colors
         self.num_pixels = len(strip)
 
     def update_strip_color(self):
@@ -28,11 +39,33 @@ class DisplayManager:
         scene_idx = self.rotary_dial.scene_current_index()
 
         # Pixels 0 & 1: Mode Indicator
-        if curr_mode == "wiz":
-            mode_color = colorwheel(50)  # Yellowish for Wiz
+        if curr_mode == "ha_light":
+            mode_color = colorwheel(50)  # Amber/yellow for light effects
             self.strip[0] = mode_color
             self.strip[1] = mode_color
-            scene_color = self.rotary_dial.wiz_light_scene_color()
+            if (
+                scene_idx < len(self.ha_light_effect_colors)
+                and self.ha_light_effect_colors[scene_idx]
+            ):
+                scene_color = get_color_from_name(
+                    self.ha_light_effect_colors[scene_idx]
+                )
+            else:
+                scene_color = colorwheel((50 + scene_idx * 20) % 255)
+            for i in range(2, self.num_pixels):
+                self.strip[i] = scene_color
+
+        elif curr_mode == "ha_brightness":
+            mode_color = rgb_colors["white"]
+            self.strip[0] = mode_color
+            self.strip[1] = mode_color
+            if (
+                scene_idx < len(self.ha_brightness_colors)
+                and self.ha_brightness_colors[scene_idx]
+            ):
+                scene_color = get_color_from_name(self.ha_brightness_colors[scene_idx])
+            else:
+                scene_color = self.rotary_dial.ha_brightness_preview_color()
             for i in range(2, self.num_pixels):
                 self.strip[i] = scene_color
 
