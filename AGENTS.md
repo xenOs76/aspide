@@ -34,7 +34,7 @@ testing.
 | `src/utils.py` | `ButtonPush`, `RotaryDial` (WiFi, NVM state, mode logic) |
 | `src/ha_client.py` | Home Assistant REST client |
 | `src/ui.py` | NeoPixel `DisplayManager` |
-| `src/colors.py` | Color name parsing and brightness labels |
+| `src/colors.py` | Color name parsing, `BRIGHTNESS_PRESETS`, `white_at_brightness()` |
 | `src/timeout.py` | Inactivity auto-dim timer |
 | `src/lib/` | Vendored CircuitPython libraries (do not lint or refactor) |
 | `src/settings.sample.toml` | Config template (commit here, not `settings.toml`) |
@@ -56,6 +56,30 @@ flowchart LR
 
 `home_assistant`, `ha_light`, `ha_brightness`
 
+### Config keys (`settings.toml`)
+
+| Key | Purpose |
+| --- | --- |
+| `HA_SCENES` / `HA_SCENE_COLORS` | Scene mode selection and NeoPixel preview |
+| `HA_LIGHT_ENTITY_ID` | Target `light.*` entity for effect and brightness modes |
+| `HA_LIGHT_EFFECTS` / `HA_LIGHT_EFFECT_COLORS` | Effect mode list and NeoPixel preview colors |
+| `HA_LIGHT_BRIGHTNESS` / `HA_LIGHT_BRIGHTNESS_COLORS` | Brightness preset labels; optional preview override |
+
+### Config defaults (0.3.0)
+
+When settings keys are empty, code falls back as follows:
+
+- **`HA_LIGHT_EFFECTS` empty** → `DEFAULT_LIGHT_EFFECTS` in `utils.py` (Warm
+  White, Daylight, Sunset, Focus). Does **not** auto-fetch HA `effect_list`.
+- **`HA_LIGHT_BRIGHTNESS` empty** → `off`, `low`, `mid`, `high`, `max`
+- **Brightness HA values** (`colors.py` `BRIGHTNESS_PRESETS`): off=0, low=64,
+  mid=128, high=191, max=255
+- **`HA_LIGHT_EFFECT_COLORS` empty** → parsed in `code.py`, passed to
+  `DisplayManager`; UI falls back to `colorwheel()` per effect index (not
+  `DEFAULT_LIGHT_EFFECT_COLORS` in `utils.py`, which is currently unused)
+- **`HA_LIGHT_BRIGHTNESS_COLORS` empty** → NeoPixel preview scales white via
+  `white_at_brightness()` to match each preset's HA brightness
+
 ### Controls (`src/code.py`)
 
 - **Rotate:** browse selection (preview only for light effects and brightness)
@@ -65,8 +89,14 @@ flowchart LR
 
 ### State persistence
 
-`RotaryDial.save_state()` writes mode/scene/effect indices to
-`microcontroller.nvm` with magic byte `0x43` (`NVM_MAGIC`).
+`RotaryDial.save_state()` persists indices to `microcontroller.nvm` with magic
+byte `0x43` (`NVM_MAGIC`):
+
+- `[0]`: magic byte
+- `[1]`: mode ID
+- `[2]`: HA scene index
+- `[3]`: HA light effect index
+- `[4]`: HA brightness preset index
 
 ## Code style
 
