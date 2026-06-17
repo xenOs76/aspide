@@ -8,8 +8,8 @@
 [CircuitPython](https://circuitpython.org/) for the Adafruit QT Py ESP32-S2
 board.\
 This device provides a physical interface to control
-[Home Assistant](https://www.home-assistant.io/) scenes and lights
-with rich visual feedback via a NeoPixel strip.
+[Home Assistant](https://www.home-assistant.io/) scenes and lights with rich
+visual feedback via a NeoPixel strip.
 
 **Aspide** is inspired by two of the many, great, tutorials created by
 [Adafruit](https://www.adafruit.com/):
@@ -41,6 +41,7 @@ with rich visual feedback via a NeoPixel strip.
         <img width="450" alt="Aspide Screeenshot 1" src="./assets/img/aspide-screenshot4-small.jpg"/>
         <img width="450" alt="Aspide Screeenshot 1" src="./assets/img/aspide-screenshot5-small.jpg"/>
         <img width="450" alt="Aspide Screeenshot 1" src="./assets/img/aspide-screenshot6-small.jpg"/>
+        <img width="450" alt="Aspide Screeenshot 1" src="./assets/img/aspide-screenshot7-small.jpg"/>
     </p>
 </details>
 
@@ -98,21 +99,24 @@ HA_URL = "http://192.168.1.78:8123"
 HA_TOKEN = "your_long_lived_access_token_here"
 
 # List of HA scenes to iterate through in 'home_assistant' mode
-HA_SCENES = "scene.nightlights,scene.lightsoff,scene.redalert,scene.softlights1"
+HA_SCENES = "scene.nightlights,scene.lightsoff,scene.atdesk_soft_lights,scene.softlights1"
 
 # Light entity for ha_light and ha_brightness modes
 HA_LIGHT_ENTITY_ID = "light.wiz_01"
 
 # Effects to browse in ha_light mode (comma-separated, must match HA effect_list)
-# Leave empty to auto-fetch effect_list from HA at boot
-HA_LIGHT_EFFECTS = "Ocean,Sunset,Party,Candlelight"
+# Leave empty to use built-in defaults: Warm White, Daylight, Sunset, Focus
+HA_LIGHT_EFFECTS = "Warm White,Daylight,Sunset,Focus"
 
 # NeoPixel preview colors for effects (1:1 with HA_LIGHT_EFFECTS; optional)
-HA_LIGHT_EFFECT_COLORS = "dim_blue,bright_orange,bright_purple,soft_gold"
+HA_LIGHT_EFFECT_COLORS = "bright_yellow,bright_white,dim_orange,dim_green"
 
-# Brightness presets for ha_brightness mode (dim=26, soft=102, bright=255)
-HA_LIGHT_BRIGHTNESS = "dim,soft,bright"
-HA_LIGHT_BRIGHTNESS_COLORS = "dim_white,soft_white,bright_white"
+# Brightness presets for ha_brightness mode (off=0, low=64, mid=128, high=191, max=255)
+HA_LIGHT_BRIGHTNESS = "off,low,mid,high,max"
+
+# Optional NeoPixel preview override (1:1 with HA_LIGHT_BRIGHTNESS)
+# If omitted, preview scales white to match each preset's HA brightness
+# HA_LIGHT_BRIGHTNESS_COLORS = ""
 ```
 
 ### NeoPixel Customization
@@ -126,7 +130,7 @@ NEOPIXEL_TIMEOUT = 30
 # Colors for HA scenes (maps 1-to-1 with HA_SCENES above)
 # Available intensities: bright_, soft_, dim_
 # Available colors: white, green, red, blue, purple, cyan, yellow, orange, pink, gold, black
-HA_SCENE_COLORS = "dim_blue,black,bright_red,soft_white"
+HA_SCENE_COLORS = "dim_blue,black,soft_white,dim_white"
 ```
 
 ## Operation
@@ -147,19 +151,20 @@ HA_SCENE_COLORS = "dim_blue,black,bright_red,soft_white"
 1. **Home Assistant Mode**: Cycles through the scenes defined in `HA_SCENES`.
    The NeoPixels will match the colors defined in `HA_SCENE_COLORS`.
 2. **Light Effects Mode** (`ha_light`): Cycles through effects defined in
-   `HA_LIGHT_EFFECTS`, or auto-fetches `effect_list` from HA when empty. Effect
-   names must match what your light integration exposes. NeoPixel preview colors
-   come from `HA_LIGHT_EFFECT_COLORS`.
-3. **Brightness Mode** (`ha_brightness`): Cycles through presets in
-   `HA_LIGHT_BRIGHTNESS` (default: dim, soft, bright). Single push sends
-   `light.turn_on` with the corresponding brightness level. NeoPixel preview
-   colors come from `HA_LIGHT_BRIGHTNESS_COLORS`.
+   `HA_LIGHT_EFFECTS`, or uses built-in defaults (Warm White, Daylight, Sunset,
+   Focus) when empty. Effect names must match what your light integration
+   exposes. NeoPixel preview colors come from `HA_LIGHT_EFFECT_COLORS`.
+3. **Brightness Mode** (`ha_brightness`): Cycles through five presets in
+   `HA_LIGHT_BRIGHTNESS` (default: off, low, mid, high, max — 0% to 100% in 25%
+   steps). Single push sends `light.turn_on` with the corresponding brightness
+   level. NeoPixel preview scales white to match each preset unless overridden
+   via `HA_LIGHT_BRIGHTNESS_COLORS`.
 
 ## Installation
 
 1. [Install CircuitPython on your QT Py ESP32-S2](https://learn.adafruit.com/adafruit-qt-py-esp32-s2/circuitpython)
 2. Copy the contents of the `src/` directory to the root of your `CIRCUITPY`
    drive
-3. Make sure all the required libraries have been copied int the `lib/` folder
+3. Make sure all the required libraries have been copied into the `lib/` folder
 4. Use `settings.sample.toml` as template to configure your `settings.toml`
 5. Enjoy!

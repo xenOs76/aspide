@@ -49,17 +49,32 @@ def get_color_from_name(name):
 
 # HA light brightness presets (0-255 scale)
 BRIGHTNESS_PRESETS = {
-    "dim": 26,
-    "soft": 102,
-    "bright": 255,
+    "off": 0,
+    "low": 64,
+    "mid": 128,
+    "high": 191,
+    "max": 255,
 }
+
+
+def white_at_brightness(brightness):
+    """Returns a white RGB tuple scaled to an HA brightness value (0-255).
+
+    Args:
+        brightness (int): HA brightness level (0-255).
+
+    Returns:
+        tuple[int, int, int]: Scaled white RGB color tuple.
+    """
+    scale = max(0, min(255, brightness)) / 255
+    return tuple(int(255 * scale) for _ in range(3))
 
 
 def brightness_from_label(label):
     """Maps a brightness preset label to an HA brightness value (0-255).
 
     Args:
-        label (str): Preset name (e.g. 'dim', 'soft', 'bright').
+        label (str): Preset name (e.g. 'off', 'low', 'mid', 'high', 'max').
 
     Returns:
         int: Brightness value for light.turn_on.

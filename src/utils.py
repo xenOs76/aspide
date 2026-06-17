@@ -4,12 +4,19 @@ import wifi
 import socketpool
 import ssl
 import microcontroller
-from colors import brightness_from_label, get_color_from_name
+from colors import brightness_from_label, get_color_from_name, white_at_brightness
 from ha_client import HomeAssistantClient
 
 NVM_MAGIC_LEGACY = 0x42
 NVM_MAGIC = 0x43
-DEFAULT_BRIGHTNESS_PRESETS = ["dim", "soft", "bright"]
+DEFAULT_LIGHT_EFFECTS = ["Warm White", "Daylight", "Sunset", "Focus"]
+DEFAULT_LIGHT_EFFECT_COLORS = [
+    "bright_yellow",
+    "bright_white",
+    "dim_orange",
+    "dim_green",
+]
+DEFAULT_BRIGHTNESS_PRESETS = ["off", "low", "mid", "high", "max"]
 
 
 class ButtonPush:
@@ -165,7 +172,7 @@ class RotaryDial:
         self.__ha_light_effect_idx = 0
         self.__ha_light_effect_colors = self.__parse_env_list("HA_LIGHT_EFFECT_COLORS")
 
-        brightness_str = os.getenv("HA_LIGHT_BRIGHTNESS", "dim,soft,bright")
+        brightness_str = os.getenv("HA_LIGHT_BRIGHTNESS", "off,low,mid,high,max")
         self.__ha_brightness_presets = [
             p.strip() for p in brightness_str.split(",") if p.strip()
         ]
@@ -194,20 +201,15 @@ class RotaryDial:
         return [item.strip() for item in value.split(",") if item.strip()]
 
     def __load_ha_light_effects(self):
-        """Loads effect list from settings or HA entity state."""
+        """Loads effect list from settings or built-in defaults."""
         configured = self.__parse_env_list("HA_LIGHT_EFFECTS")
         if configured:
             self.__ha_light_effects_avail = configured
             print(f"Loaded {len(configured)} effects from HA_LIGHT_EFFECTS")
             return
 
-        if self.__ha_client and self.__ha_light_entity_id:
-            fetched = self.__ha_client.fetch_light_effects(self.__ha_light_entity_id)
-            if fetched:
-                self.__ha_light_effects_avail = fetched
-                return
-
-        print("WARNING: No light effects available for ha_light mode")
+        self.__ha_light_effects_avail = list(DEFAULT_LIGHT_EFFECTS)
+        print(f"Loaded {len(self.__ha_light_effects_avail)} default light effects")
 
     def __normalize_ha_light_effect_selection(self):
         """Ensures effect index and name are valid after loading effects."""
@@ -485,8 +487,8 @@ class RotaryDial:
                 self.__ha_brightness_colors[self.__ha_brightness_idx]
             )
 
-        label = self.__ha_brightness_curr or "bright"
-        return get_color_from_name(f"{label}_white")
+        label = self.__ha_brightness_curr or "max"
+        return white_at_brightness(brightness_from_label(label))
 
     def ha_brightness_select_next(self):
         """Increments the internal brightness preset selection."""
