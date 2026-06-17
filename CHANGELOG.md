@@ -1,3 +1,33 @@
+### 0.2.0 (2026-06-17)
+
+### Added
+
+- **Light Effects mode** (`ha_light`): browse and apply HA `light.*` effects via
+  `HA_LIGHT_EFFECTS` or auto-fetched `effect_list`
+- **Brightness mode** (`ha_brightness`): dim/soft/bright presets via
+  `HA_LIGHT_BRIGHTNESS`
+- NeoPixel preview colors for effects and brightness (`HA_LIGHT_EFFECT_COLORS`,
+  `HA_LIGHT_BRIGHTNESS_COLORS`)
+- `AGENTS.md` — project-specific guidance for AI coding agents (commands,
+  structure, boundaries)
+- HA client support for `light.turn_on` with `effect` and `brightness`; entity
+  state and effect list fetching
+
+### Changed
+
+- Replaced Wiz-specific control with manufacturer-agnostic HA light entity
+  control (`HA_LIGHT_ENTITY_ID`)
+- **Button mapping:** long push cycles modes; double push reboots (was reversed)
+- Triple-mode operation: Home Assistant scenes, light effects, brightness
+  presets
+- NVM state format uses magic byte `0x43` with legacy `0x42` migration
+- README and `settings.sample.toml` updated for new modes and config keys
+
+### Removed
+
+- `adafruit-circuitpython-wiz` dependency
+- `HA_WIZ_LIGHT_ENTITY_ID` and Wiz-specific code paths
+
 ## 0.1.0 (2026-06-13)
 
 ### Feat
