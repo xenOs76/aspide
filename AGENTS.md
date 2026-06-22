@@ -81,6 +81,8 @@ When settings keys are empty, code falls back as follows:
 - **`HA_LIGHT_BRIGHTNESS_COLORS` empty** → NeoPixel preview scales white via
   `white_at_brightness()` to match each preset's HA brightness
 - **`HA_PHONE_HOME_INTERVAL` absent** → `DEFAULT_HA_PHONE_HOME_INTERVAL` (300 s)
+- **Invalid or non-positive `HA_PHONE_HOME_INTERVAL`** → serial log warning, fall back to
+  `DEFAULT_HA_PHONE_HOME_INTERVAL`
   in `utils.py`; `code.py` gates `RotaryDial.phone_home_assistant()` on
   `time.monotonic_ns()`
 

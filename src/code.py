@@ -95,9 +95,25 @@ if success:
     rotary_dial.online = True
 display.show_connection_status(success)
 
-_ha_phone_home_seconds = int(
-    os.getenv("HA_PHONE_HOME_INTERVAL", str(DEFAULT_HA_PHONE_HOME_INTERVAL))
+_ha_phone_home_raw = os.getenv(
+    "HA_PHONE_HOME_INTERVAL", str(DEFAULT_HA_PHONE_HOME_INTERVAL)
 )
+try:
+    _ha_phone_home_seconds = int(_ha_phone_home_raw)
+except (TypeError, ValueError):
+    print(
+        "Invalid HA_PHONE_HOME_INTERVAL; "
+        f"using default {DEFAULT_HA_PHONE_HOME_INTERVAL}s"
+    )
+    _ha_phone_home_seconds = DEFAULT_HA_PHONE_HOME_INTERVAL
+
+if _ha_phone_home_seconds <= 0:
+    print(
+        "HA_PHONE_HOME_INTERVAL must be > 0; "
+        f"using default {DEFAULT_HA_PHONE_HOME_INTERVAL}s"
+    )
+    _ha_phone_home_seconds = DEFAULT_HA_PHONE_HOME_INTERVAL
+
 HA_PHONE_HOME_INTERVAL_NS = _ha_phone_home_seconds * 1_000_000_000
 last_ha_phone_home = time.monotonic_ns()
 
