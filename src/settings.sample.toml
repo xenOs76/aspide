@@ -38,3 +38,7 @@ HA_LIGHT_BRIGHTNESS = "off,low,mid,high,max"
 # Optional NeoPixel preview override (1:1 with HA_LIGHT_BRIGHTNESS)
 # If omitted, preview scales white to match each preset's HA brightness
 # HA_LIGHT_BRIGHTNESS_COLORS = ""
+
+# Optional: seconds between periodic Home Assistant connectivity checks.
+# Omit to use firmware default (300 = 5 min); see DEFAULT_HA_PHONE_HOME_INTERVAL in utils.py
+# HA_PHONE_HOME_INTERVAL = 300

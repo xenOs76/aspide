@@ -17,6 +17,7 @@ DEFAULT_LIGHT_EFFECT_COLORS = [
     "dim_green",
 ]
 DEFAULT_BRIGHTNESS_PRESETS = ["off", "low", "mid", "high", "max"]
+DEFAULT_HA_PHONE_HOME_INTERVAL = 300  # seconds (5 min)
 
 
 class ButtonPush:
@@ -378,6 +379,40 @@ class RotaryDial:
         except Exception as e:
             print(f"Error initializing HA: {e}")
             return False
+
+    def phone_home_assistant(self, max_attempts=3, retry_delay=5):
+        """Verify HA connectivity; retry with WiFi reconnect on failure.
+
+        Args:
+            max_attempts (int): Total ping attempts (initial plus retries).
+            retry_delay (int): Seconds to wait between attempts.
+
+        Returns:
+            bool: True if HA responded; False after all attempts failed.
+        """
+        if not self.__ha_client:
+            print("HA phone-home skipped: client not initialized")
+            return False
+
+        for attempt in range(1, max_attempts + 1):
+            print(f"HA phone-home attempt {attempt}/{max_attempts}")
+            if not wifi.radio.connected:
+                print("WiFi disconnected, reconnecting...")
+                if not self.wifi_connect():
+                    print("WiFi reconnect failed")
+                elif self.__ha_client.ping():
+                    print("HA phone-home successful")
+                    return True
+            elif self.__ha_client.ping():
+                print("HA phone-home successful")
+                return True
+
+            print(f"HA phone-home attempt {attempt} failed")
+            if attempt < max_attempts:
+                time.sleep(retry_delay)
+
+        print("HA phone-home failed after all attempts")
+        return False
 
     def ha_light_power(self, state=False):
         """Directly toggles the power state of the targeted HA light entity.

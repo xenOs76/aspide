@@ -30,6 +30,8 @@ visual feedback via a NeoPixel strip.
   through Home Assistant — no direct UDP or vendor-specific libraries required.
 - **Inactivity Timer**: Automatically dims NeoPixels after a period of
   inactivity to save power and reduce light pollution.
+- **HA Health Check**: Periodically verifies Home Assistant connectivity and
+  reboots if unreachable after retries (automatic recovery).
 
 ## Screenshots
 
@@ -159,6 +161,14 @@ HA_SCENE_COLORS = "dim_blue,black,soft_white,dim_white"
    steps). Single push sends `light.turn_on` with the corresponding brightness
    level. NeoPixel preview scales white to match each preset unless overridden
    via `HA_LIGHT_BRIGHTNESS_COLORS`.
+
+### HA connectivity
+
+Every 5 minutes (configurable via optional `HA_PHONE_HOME_INTERVAL`), the device
+pings Home Assistant. If the API is unreachable, it retries twice at 5-second
+intervals (reconnecting WiFi if needed), then reboots to recover device-side
+network state. If Home Assistant remains down, this cycle repeats each interval
+until HA responds.
 
 ## Installation
 
