@@ -17,7 +17,7 @@ import board
 from colors import rgb_colors
 from timeout import InactivityTimer
 from ui import DisplayManager
-from utils import ButtonPush, RotaryDial
+from utils import ButtonPush, DEFAULT_HA_PHONE_HOME_INTERVAL, RotaryDial
 
 # --- Hardware Initialization ---
 
@@ -94,6 +94,12 @@ if success:
     rotary_dial.ha_light_power(True)
     rotary_dial.online = True
 display.show_connection_status(success)
+
+_ha_phone_home_seconds = int(
+    os.getenv("HA_PHONE_HOME_INTERVAL", str(DEFAULT_HA_PHONE_HOME_INTERVAL))
+)
+HA_PHONE_HOME_INTERVAL_NS = _ha_phone_home_seconds * 1_000_000_000
+last_ha_phone_home = time.monotonic_ns()
 
 # --- Main Event Loop ---
 
@@ -192,5 +198,19 @@ while True:
 
     # 3. Handle NeoPixel Timeout (Auto-Dim)
     timer.check()
+
+    # 4. Periodic HA phone-home health check
+    if (
+        rotary_dial.online
+        and time.monotonic_ns() - last_ha_phone_home >= HA_PHONE_HOME_INTERVAL_NS
+    ):
+        last_ha_phone_home = time.monotonic_ns()
+        if not rotary_dial.phone_home_assistant():
+            strip.fill(rgb_colors["red"])
+            time.sleep(0.5)
+            strip.fill(rgb_colors["black"])
+            time.sleep(0.2)
+            rotary_dial.save_state()
+            microcontroller.reset()
 
     time.sleep(0.01)  # Prevent CPU hogging

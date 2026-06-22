@@ -120,6 +120,29 @@ class HomeAssistantClient:
         data = {"entity_id": entity_id}
         return self.call_service("light", "turn_off", data)
 
+    def ping(self, timeout=10):
+        """Checks whether the Home Assistant API is reachable.
+
+        Args:
+            timeout (float): Request timeout in seconds.
+
+        Returns:
+            bool: True if the API responded with HTTP 200.
+        """
+        if not self._url or not self._token:
+            return False
+
+        url = f"{self._url}/api/"
+        try:
+            response = self._requests.get(url, headers=self._headers, timeout=timeout)
+            if response.status_code == 200:
+                return True
+            print(f"HA ping failed. Status code: {response.status_code}")
+            return False
+        except Exception as e:
+            print(f"HA ping error: {e}")
+            return False
+
     def fetch_light_effects(self, entity_id):
         """Retrieves the effect_list from a light entity state.
 

@@ -64,6 +64,7 @@ flowchart LR
 | `HA_LIGHT_ENTITY_ID` | Target `light.*` entity for effect and brightness modes |
 | `HA_LIGHT_EFFECTS` / `HA_LIGHT_EFFECT_COLORS` | Effect mode list and NeoPixel preview colors |
 | `HA_LIGHT_BRIGHTNESS` / `HA_LIGHT_BRIGHTNESS_COLORS` | Brightness preset labels; optional preview override |
+| `HA_PHONE_HOME_INTERVAL` (optional) | Seconds between periodic HA connectivity checks; default `DEFAULT_HA_PHONE_HOME_INTERVAL` (300) in `utils.py` |
 
 ### Config defaults (0.3.0)
 
@@ -79,6 +80,9 @@ When settings keys are empty, code falls back as follows:
   `DEFAULT_LIGHT_EFFECT_COLORS` in `utils.py`, which is currently unused)
 - **`HA_LIGHT_BRIGHTNESS_COLORS` empty** → NeoPixel preview scales white via
   `white_at_brightness()` to match each preset's HA brightness
+- **`HA_PHONE_HOME_INTERVAL` absent** → `DEFAULT_HA_PHONE_HOME_INTERVAL` (300 s)
+  in `utils.py`; `code.py` gates `RotaryDial.phone_home_assistant()` on
+  `time.monotonic_ns()`
 
 ### Controls (`src/code.py`)
 
@@ -125,7 +129,7 @@ MODES = ["scenes", "lights", "brightness"]  # diverges from RotaryDial.__modes
 1. Run `pre-commit run --all-files` before finishing.
 2. Run `python -m compileall` on touched Python files.
 3. For behavior changes, verify on device: rotate, single/long/double push, WiFi
-   reconnect, HA API calls.
+   reconnect, HA API calls, periodic HA phone-home check and reboot-on-failure.
 4. Do not add trivial tests unless explicitly requested.
 
 ## Security and boundaries

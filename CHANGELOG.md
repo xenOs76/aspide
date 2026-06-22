@@ -1,10 +1,20 @@
+### 0.4.0 (2026-06-22)
+
+- **Periodic HA phone-home**: `HomeAssistantClient.ping()` and
+  `RotaryDial.phone_home_assistant()` verify HA connectivity every 5 minutes
+  (default); retries twice at 5-second intervals with WiFi reconnect; reboots on
+  persistent failure until HA recovers
+- Optional `HA_PHONE_HOME_INTERVAL` setting; firmware default
+  `DEFAULT_HA_PHONE_HOME_INTERVAL` (300 s) in `utils.py`
+
 ### 0.3.0 (2026-06-17)
 
 - **Light effects** curated to four Wiz presets (Warm White, Daylight, Sunset,
   Focus) with matching NeoPixel preview colors; empty `HA_LIGHT_EFFECTS` uses
   built-in defaults instead of auto-fetching full `effect_list`
-- **Brightness presets** expanded to five evenly spaced levels (off/low/mid/high/max:
-  0%, 25%, 50%, 75%, 100%); NeoPixel preview scales white to match HA brightness
+- **Brightness presets** expanded to five evenly spaced levels
+  (off/low/mid/high/max: 0%, 25%, 50%, 75%, 100%); NeoPixel preview scales white
+  to match HA brightness
 - Sample scene list: `scene.redalert` replaced with `scene.atdesk_soft_lights`;
   NeoPixel preview colors updated (`soft_white`, `dim_white`)
 
